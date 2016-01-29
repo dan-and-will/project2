@@ -1,5 +1,6 @@
 #!/usr/bin/python -u
 # The -u makes output unbuffered, so it will show up immediately
+import json
 import sys
 import socket
 import select
@@ -15,8 +16,8 @@ def pad(name):
 
 class Port:
 
-    def __init__(self, pid, sock):
-        self.pid = pid
+    def __init__(self, sock):
+        self.pid = sock.fileno()
         self.socket = sock
         self.isEnabled = True
         self.isRoot = False
@@ -27,37 +28,41 @@ class Bridge:
     def __init__(self, bid, LANs):
         self.id = bid
         self.LANs = LAN
-        self.ports = []
+        self.ports = {}
         self.ftable = ForwardingTable()
 
         # creates sockets and connects to them
         for i in range(len(LAN)):
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(LAN[i]))
-            self.ports.append(Port(i, s))
+            self.ports[s.fileno()] = Port(s))
 
         print "Bridge " + bid + " starting up\n"
+
+    def process_message(self, msg, pid):
+        self.ftable.write_row(msg[source], pid)
 
     def run(self):
         while True:
             # Calls select with all the sockets; change the timeout value (1)
             enabled_socks = []
             disabled_socks = []
-            for p in self.ports:
+            for p in self.ports.itervalues():
                 if p.isEnabled:
                     enabled_socks.append(p.socket)
                 else:
                     disabled_socks.append(p.socket)
-            ready_enabled, _, _ = select.select(enabled_socks, [], [], 1)
-            ready_disabled, _, _ = select.select(disabled_socks, [], [], 1)
+            socks_enabled, _, _ = select.select(enabled_socks, [], [], 1)
+            socks_disabled, _, _ = select.select(disabled_socks, [], [], 1)
 
-            # Reads from each fo the ready sockets
+            # Reads from each of the ready sockets
             for s in ready_enabled:
-                data = s.recv(1500)
-                print(data)
+                data = json.loads(s.recv(1500))
+                process_message(data, s.fileno())
             for s in ready_disabled:
-                data = s.recv(1500)
-                print(data)
+                data = json.loads(s.recv(1500))
+                if data.type == 'bpdu':
+                    process_message(data, s.fileno())
 
 if __name__ == '__main__':
     bid = sys.argv[1]
