@@ -4,6 +4,8 @@ import sys
 import socket
 import select
 
+from forwarding_table import ForwardingTable
+
 # pads the name with null bytes at the end
 def pad(name):
     result = '\0' + name
@@ -11,28 +13,49 @@ def pad(name):
         result += '\0'
     return result
 
+class Port:
+
+    def __init__(self, pid, sock):
+        self.pid = pid
+        self.socket = sock
+        self.isEnabled = True
+        self.isRoot = False
+        self.isDesignated = False
+
 class Bridge:
 
     def __init__(self, bid, LANs):
         self.id = bid
         self.LANs = LAN
-        self.sockets = []
+        self.ports = []
+        self.ftable = ForwardingTable()
 
         # creates sockets and connects to them
         for i in range(len(LAN)):
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(LAN[i]))
-            sockets.append(s)
+            ports.append(Port(s, i))
 
         print "Bridge " + bid + " starting up\n"
 
     def run(self):
         while True:
             # Calls select with all the sockets; change the timeout value (1)
-            ready, _, _ = select.select(self.sockets, [], [], 1)
+            enabled_socks = []
+            disabled_socks = []
+            for p in self.ports:
+                if p.isEnabled:
+                    enabled_socks.append(p.socket)
+                else:
+                    disabled_socks.append(p.socket)
+            ready_enabled, _, _ = select.select(enabled_socks, [], [], 1)
+            ready_disabled, _, _ = select.select(disabled_socks, [], [], 1)
 
             # Reads from each fo the ready sockets
-            for s in ready:
+            for s in ready_enabled:
+                data = s.recv(1500)
+                print(data)
+            for s in ready_disabled:
                 data = s.recv(1500)
                 print(data)
 
