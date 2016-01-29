@@ -34,7 +34,7 @@ class Bridge:
         for i in range(len(LAN)):
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(LAN[i]))
-            ports.append(Port(s, i))
+            self.ports.append(Port(i, s))
 
         print "Bridge " + bid + " starting up\n"
 
