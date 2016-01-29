@@ -7,31 +7,37 @@ import select
 # pads the name with null bytes at the end
 def pad(name):
     result = '\0' + name
-    while len(result) < 108:
+    while len(result) < 128:
         result += '\0'
     return result
 
-def main():
-    id = sys.argv[1]
-    LAN = sys.argv[2:]
-    sockets = []
+class Bridge:
 
-    # creates sockets and connects to them
-    for i in range(len(LAN)):
-        s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-        s.connect(pad(LAN[i]))
-        sockets.append(s)
+    def __init__(self, bid, LANs):
+        self.id = bid
+        self.LANs = LAN
+        self.sockets = []
 
-    print "Bridge " + id + " starting up\n"
+        # creates sockets and connects to them
+        for i in range(len(LAN)):
+            s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            s.connect(pad(LAN[i]))
+            sockets.append(s)
 
-    while True:
-        # Calls select with all the sockets; change the timeout value (1)
-        ready, _, _ = select.select(sockets, [], [], 1)
+        print "Bridge " + bid + " starting up\n"
 
-        # Reads from each fo the ready sockets
-        for sock in ready:
-            data = sock.recv(1500)
-            print(data)
+    def run(self):
+        while True:
+            # Calls select with all the sockets; change the timeout value (1)
+            ready, _, _ = select.select(self.sockets, [], [], 1)
+
+            # Reads from each fo the ready sockets
+            for s in ready:
+                data = s.recv(1500)
+                print(data)
 
 if __name__ == '__main__':
-    main()
+    bid = sys.argv[1]
+    LAN = sys.argv[2:]
+    bridge = Bridge(bid, LAN)
+    bridge.run()
