@@ -32,6 +32,7 @@ class Bridge:
         self.root_cost = 0
         self.LANs = LAN
         self.ports = {}
+        self.closed_ports = set()
         self.ftable = ForwardingTable()
 
         # creates sockets and connects to them
@@ -41,6 +42,15 @@ class Bridge:
             self.ports[s.fileno()] = Port(s))
 
         print "Bridge " + bid + " starting up\n"
+
+    def close_port(self, pid):
+        self.closed_ports.add(pid)
+
+    def open_port(self, pid):
+        self.closed_ports.discard(pid)
+
+    def get_open_ports(self):
+        return [self.ports[pid] for pid in self.ports if pid not in self.closed_ports]
 
     def use_bpdu(self, bpdu):
         self.root = bpdu['root']
@@ -63,18 +73,34 @@ class Bridge:
             return
         self.use_bpdu(msg)
 
+    def send_message(self, msg, ports=None):
+        if ports is None:
+            ports = self.ports.itervalues()
+        _, ready, _ = select.select({}, [p.socket for p in ports], [], 1)
+        for s in ready:
+            s.send(msg)
+
+    def forward_message(self, msg):
+        dest_mac = msg['dest']
+        port_id = self.ftable.read_row(dest_mac)
+        if port_id < 0:
+            ports = self.get_open_ports()
+        else:
+            ports = [self.ports[port_id]]
+        for p in ports:
+            self.send_message(msg, ports=ports)
+
     def process_message(self, data, pid):
         msg = json.loads(data)
         self.ftable.write_row(msg['source'], pid)
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg['message'])
+        if msg['type'] = 'data':
+            self.forward_message(msg)
 
     def send_bpdus(self):
-        _, ready, _ = select.select({}, [p.socket for p in self.ports.itervalues()], [], 1)
-        for s in ready:
-            s.send(self.make_bpdu_packet())
+        self.send_message(self.make_bpdu_packet())
         threading.Timer(0.5, self.send_bpdus).start()
-
 
     def run(self):
         self.send_bpdus()
