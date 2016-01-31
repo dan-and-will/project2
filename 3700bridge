@@ -4,6 +4,7 @@ import json
 import sys
 import socket
 import select
+import threading
 
 from forwarding_table import ForwardingTable
 
@@ -27,6 +28,8 @@ class Bridge:
 
     def __init__(self, bid, LANs):
         self.id = bid
+        self.root = bid
+        self.root_cost = 0
         self.LANs = LAN
         self.ports = {}
         self.ftable = ForwardingTable()
@@ -39,30 +42,50 @@ class Bridge:
 
         print "Bridge " + bid + " starting up\n"
 
-    def process_message(self, msg, pid):
-        self.ftable.write_row(msg[source], pid)
+    def use_bpdu(self, bpdu):
+        self.root = bpdu['root']
+        self.root_cost = bpdu['cost'] + 1
+
+    def make_bpdu_packet(self):
+        """ {"source":"02a1", "dest":"ffff", "type": "bpdu",
+        "message":{"id":"92b4", "root":"02a1", "cost":3}}
+        """
+        bpdu = {'id': self.id, 'root': self.root, 'cost': self.root_cost}
+        bpdu_packet = {'source': self.id, 'dest': 'ffff', 'type': 'bpdu', 'message': bpdu}
+        return json.dumps(bpdu_packet)
+
+    def process_bpdu(self, msg):
+        if self.root < msg['root']:
+            return
+        elif self.root == msg['root'] and self.root_cost < msg['cost']:
+            return
+        elif self.root == msg['root'] and self.root_cost == msg['cost'] and self.bid < msg['id']:
+            return
+        self.use_bpdu(msg)
+
+    def process_message(self, data, pid):
+        msg = json.loads(data)
+        self.ftable.write_row(msg['source'], pid)
+        if msg['type'] == 'bpdu':
+            self.process_bpdu(msg['message'])
+
+    def send_bpdus(self):
+        _, ready, _ = select.select({}, [p.socket for p in self.ports.itervalues()], [], 1)
+        for s in ready:
+            s.send(self.make_bpdu_packet())
+        threading.Timer(0.5, self.send_bpdus).start()
+
 
     def run(self):
+        self.send_bpdus()
         while True:
             # Calls select with all the sockets; change the timeout value (1)
-            enabled_socks = []
-            disabled_socks = []
-            for p in self.ports.itervalues():
-                if p.isEnabled:
-                    enabled_socks.append(p.socket)
-                else:
-                    disabled_socks.append(p.socket)
-            socks_enabled, _, _ = select.select(enabled_socks, [], [], 1)
-            socks_disabled, _, _ = select.select(disabled_socks, [], [], 1)
+            ready, _, _ = select.select([p.socket for p in self.ports.itervalues()], [], [], 1)
 
             # Reads from each of the ready sockets
-            for s in ready_enabled:
-                data = json.loads(s.recv(1500))
-                process_message(data, s.fileno())
-            for s in ready_disabled:
-                data = json.loads(s.recv(1500))
-                if data.type == 'bpdu':
-                    process_message(data, s.fileno())
+            for s in ready:
+                data = s.recv(1500)
+                self.process_message(data, s.fileno())
 
 if __name__ == '__main__':
     bid = sys.argv[1]
