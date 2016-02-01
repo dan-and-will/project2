@@ -79,12 +79,14 @@ class Bridge:
 
     def process_bpdu(self, msg, pid):
         root_bpdu = compare_bpdus(self.bpdu, msg)
-        self.use_bpdu(root_bpdu, pid)
+        if root_bpdu != self.bpdu:
+            self.use_bpdu(root_bpdu, pid)
 
     def send_message(self, msg, ports=None):
         if ports is None:
-            ports = self.ports.itervalues()
+            ports = self.ports.values()
         _, ready, _ = select.select({}, [p.socket for p in ports], [], 1)
+        print 'Sending {msg} on ports: {ready}/{ports}'.format(msg=msg, ready=[s.fileno() for s in ready], ports=[p.pid for p in ports])
         for s in ready:
             s.send(msg)
 
