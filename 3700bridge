@@ -39,7 +39,7 @@ class Bridge:
         for i in range(len(LAN)):
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(LAN[i]))
-            self.ports[s.fileno()] = Port(s))
+            self.ports[s.fileno()] = Port(s)
 
         print "Bridge " + bid + " starting up\n"
 
@@ -69,7 +69,7 @@ class Bridge:
             return
         elif self.root == msg['root'] and self.root_cost < msg['cost']:
             return
-        elif self.root == msg['root'] and self.root_cost == msg['cost'] and self.bid < msg['id']:
+        elif self.root == msg['root'] and self.root_cost == msg['cost'] and self.id < msg['id']:
             return
         self.use_bpdu(msg)
 
@@ -87,6 +87,7 @@ class Bridge:
             ports = self.get_open_ports()
         else:
             ports = [self.ports[port_id]]
+        msg = json.dumps(msg)
         for p in ports:
             self.send_message(msg, ports=ports)
 
@@ -95,7 +96,7 @@ class Bridge:
         self.ftable.write_row(msg['source'], pid)
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg['message'])
-        if msg['type'] = 'data':
+        if msg['type'] == 'data':
             self.forward_message(msg)
 
     def send_bpdus(self):
