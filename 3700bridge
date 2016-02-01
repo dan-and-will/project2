@@ -15,23 +15,14 @@ def pad(name):
         result += '\0'
     return result
 
-class Port:
-
-    def __init__(self, sock):
-        self.pid = sock.fileno()
-        self.socket = sock
-        self.isEnabled = True
-        self.isRoot = False
-        self.isDesignated = False
-
 def compare_bpdus(bpdu1, bpdu2):
     if bpdu1['root'] < bpdu2['root']:
-        return bpdu1
+        return -1
     elif bpdu1['root'] == bpdu2['root'] and bpdu1['cost'] < bpdu2['cost']:
-        return bpdu1
+        return -1
     elif bpdu1['root'] == bpdu2['root'] and bpdu1['cost'] == bpdu2['cost'] and bpdu1['id'] < bpdu2['id']:
-        return bpdu1
-    return bpdu2
+        return -1
+    return 1
 
 class Bridge:
 
@@ -48,15 +39,15 @@ class Bridge:
         for i in range(len(LAN)):
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(LAN[i]))
-            self.ports[s.fileno()] = Port(s)
+            self.ports[s.fileno()] = s
 
         print "Bridge " + bid + " starting up\n"
 
-    def close_port(self, pid):
+    def disable_port(self, pid):
         print 'Disabled port: {id}/{pid}'.format(id=self.id, pid=pid)
         self.closed_ports.add(pid)
 
-    def open_port(self, pid):
+    def enable_port(self, pid):
         self.closed_ports.discard(pid)
 
     def get_open_ports(self):
@@ -73,20 +64,19 @@ class Bridge:
         """ {"source":"02a1", "dest":"ffff", "type": "bpdu",
         "message":{"id":"92b4", "root":"02a1", "cost":3}}
         """
-        
+
         bpdu_packet = {'source': self.id, 'dest': 'ffff', 'type': 'bpdu', 'message': self.bpdu}
         return json.dumps(bpdu_packet)
 
     def process_bpdu(self, msg, pid):
-        root_bpdu = compare_bpdus(self.bpdu, msg)
-        if root_bpdu != self.bpdu:
-            self.use_bpdu(root_bpdu, pid)
+        if compare_bpdus(self.bpdu, msg) > 1:
+            self.use_bpdu(msg, pid)
 
     def send_message(self, msg, ports=None):
         if ports is None:
             ports = self.ports.values()
-        _, ready, _ = select.select({}, [p.socket for p in ports], [], 1)
-        print 'Sending {msg} on ports: {ready}/{ports}'.format(msg=msg, ready=[s.fileno() for s in ready], ports=[p.pid for p in ports])
+        _, ready, _ = select.select({}, ports, [], 1)
+        print 'Sending {msg} on ports: {ready}/{ports}'.format(msg=msg, ready=[s.fileno() for s in ready], ports=[p.fileno() for p in ports])
         for s in ready:
             s.send(msg)
 
@@ -117,7 +107,7 @@ class Bridge:
         self.send_bpdus()
         while True:
             # Calls select with all the sockets; change the timeout value (1)
-            ready, _, _ = select.select([p.socket for p in self.ports.itervalues()], [], [], 1)
+            ready, _, _ = select.select(self.ports.values(), [], [], 1)
 
             # Reads from each of the ready sockets
             for s in ready:
