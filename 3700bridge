@@ -73,8 +73,8 @@ class Bridge:
         """ {"source":"02a1", "dest":"ffff", "type": "bpdu",
         "message":{"id":"92b4", "root":"02a1", "cost":3}}
         """
-        bpdu = {'id': self.id, 'root': self.root, 'cost': self.root_cost}
-        bpdu_packet = {'source': self.id, 'dest': 'ffff', 'type': 'bpdu', 'message': bpdu}
+        
+        bpdu_packet = {'source': self.id, 'dest': 'ffff', 'type': 'bpdu', 'message': self.bpdu}
         return json.dumps(bpdu_packet)
 
     def process_bpdu(self, msg, pid):
