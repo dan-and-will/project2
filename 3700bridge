@@ -24,16 +24,25 @@ class Port:
         self.isRoot = False
         self.isDesignated = False
 
+def compare_bpdus(bpdu1, bpdu2):
+    if bpdu1['root'] < bpdu2['root']:
+        return bpdu1
+    elif bpdu1['root'] == bpdu2['root'] and bpdu1['cost'] < bpdu2['cost']:
+        return bpdu1
+    elif bpdu1['root'] == bpdu2['root'] and bpdu1['cost'] == bpdu2['cost'] and bpdu1['id'] < bpdu2['id']:
+        return bpdu1
+    return bpdu2
+
 class Bridge:
 
     def __init__(self, bid, LANs):
+        self.ftable = ForwardingTable()
         self.id = bid
-        self.root = bid
-        self.root_cost = 0
         self.LANs = LAN
         self.ports = {}
         self.closed_ports = set()
-        self.ftable = ForwardingTable()
+        self.root_port = None
+        self.bpdu = {'root': bid, 'cost': 0, 'id': bid}
 
         # creates sockets and connects to them
         for i in range(len(LAN)):
@@ -44,6 +53,7 @@ class Bridge:
         print "Bridge " + bid + " starting up\n"
 
     def close_port(self, pid):
+        print 'Disabled port: {id}/{pid}'.format(id=self.id, pid=pid)
         self.closed_ports.add(pid)
 
     def open_port(self, pid):
@@ -52,9 +62,12 @@ class Bridge:
     def get_open_ports(self):
         return [self.ports[pid] for pid in self.ports if pid not in self.closed_ports]
 
-    def use_bpdu(self, bpdu):
-        self.root = bpdu['root']
-        self.root_cost = bpdu['cost'] + 1
+    def use_bpdu(self, bpdu, pid):
+        print 'New root: {id}/{root}'.format(id=self.id, root=bpdu['root'])
+        print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
+        self.root_port = self.ports[pid]
+        self.bpdu = bpdu
+        self.bpdu['cost'] += 1
 
     def make_bpdu_packet(self):
         """ {"source":"02a1", "dest":"ffff", "type": "bpdu",
@@ -64,14 +77,9 @@ class Bridge:
         bpdu_packet = {'source': self.id, 'dest': 'ffff', 'type': 'bpdu', 'message': bpdu}
         return json.dumps(bpdu_packet)
 
-    def process_bpdu(self, msg):
-        if self.root < msg['root']:
-            return
-        elif self.root == msg['root'] and self.root_cost < msg['cost']:
-            return
-        elif self.root == msg['root'] and self.root_cost == msg['cost'] and self.id < msg['id']:
-            return
-        self.use_bpdu(msg)
+    def process_bpdu(self, msg, pid):
+        root_bpdu = compare_bpdus(self.bpdu, msg)
+        self.use_bpdu(root_bpdu, pid)
 
     def send_message(self, msg, ports=None):
         if ports is None:
@@ -95,7 +103,7 @@ class Bridge:
         msg = json.loads(data)
         self.ftable.write_row(msg['source'], pid)
         if msg['type'] == 'bpdu':
-            self.process_bpdu(msg['message'])
+            self.process_bpdu(msg['message'], pid)
         if msg['type'] == 'data':
             self.forward_message(msg)
 
