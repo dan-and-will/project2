@@ -8,14 +8,19 @@ import threading
 
 from forwarding_table import ForwardingTable
 
-# pads the name with null bytes at the end
 def pad(name):
+    """pads the name with null bytes at the end
+    """
     result = '\0' + name
     while len(result) < 108:
         result += '\0'
     return result
 
 def compare_bpdus(bpdu1, bpdu2):
+    """compares 2 BPDU messages and indicates which should be used
+    -1 for bpud1
+    1 for bpdu2
+    """
     if bpdu1['root'] < bpdu2['root']:
         return -1
     elif bpdu1['root'] == bpdu2['root'] and bpdu1['cost'] < bpdu2['cost']:
@@ -27,6 +32,8 @@ def compare_bpdus(bpdu1, bpdu2):
 class Bridge:
 
     def __init__(self, bid, LANs):
+        """sets up bridge with command line params and default values
+        """
         self.ftable = ForwardingTable()
         self.id = bid
         self.LANs = LAN
@@ -44,16 +51,25 @@ class Bridge:
         print "Bridge " + bid + " starting up\n"
 
     def disable_port(self, pid):
+        """disables port
+        """
         print 'Disabled port: {id}/{pid}'.format(id=self.id, pid=pid)
         self.closed_ports.add(pid)
 
     def enable_port(self, pid):
+        """enables port
+        """
         self.closed_ports.discard(pid)
 
-    def get_open_ports(self):
-        return [self.ports[pid] for pid in self.ports if pid not in self.closed_ports]
+    def get_open_ports(self, exclude_pid=None):
+        """returns all enabled ports
+        exclude_pid is optional and is used to exclude the port that recieved the message
+        """
+        return [self.ports[pid] for pid in self.ports if pid not in self.closed_ports and pid != exclude_pid]
 
     def use_bpdu(self, bpdu, pid):
+        """configures bridge based on better BPDU
+        """
         print 'New root: {id}/{root}'.format(id=self.id, root=bpdu['root'])
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
         self.root_port = self.ports[pid]
@@ -61,26 +77,36 @@ class Bridge:
         self.bpdu['cost'] += 1
 
     def make_bpdu_packet(self):
-        """ {"source":"02a1", "dest":"ffff", "type": "bpdu",
+        """creates BPDU message based on current bridge configuration and given format
+
+        {"source":"02a1", "dest":"ffff", "type": "bpdu",
         "message":{"id":"92b4", "root":"02a1", "cost":3}}
         """
-
         bpdu_packet = {'source': self.id, 'dest': 'ffff', 'type': 'bpdu', 'message': self.bpdu}
         return json.dumps(bpdu_packet)
 
     def process_bpdu(self, msg, pid):
+        """compares incoming BPDU messages to the current bridge configuration
+        updates the bridge if necessary
+        """
         if compare_bpdus(self.bpdu, msg) > 1:
             self.use_bpdu(msg, pid)
 
-    def send_message(self, msg, ports=None):
-        if ports is None:
-            ports = self.ports.values()
+    def send_message(self, msg, ports):
+        """generic method to send a message on a list of ports
+        """
         _, ready, _ = select.select({}, ports, [], 1)
-        print 'Sending {msg} on ports: {ready}/{ports}'.format(msg=msg, ready=[s.fileno() for s in ready], ports=[p.fileno() for p in ports])
+        ####TODO: for debugging. DELETE
+        print 'Sending {msg} on ports: {ready}/{ports}'.format(msg=msg,
+                                                               ready=[s.fileno() for s in ready],
+                                                               ports=self.ports.keys()
+                                                               )
         for s in ready:
             s.send(msg)
 
-    def forward_message(self, msg):
+    def forward_message(self, msg, rescv_pid):
+        """handles sending message to destination
+        """
         dest_mac = msg['dest']
         port_id = self.ftable.read_row(dest_mac)
         if port_id < 0:
@@ -88,22 +114,28 @@ class Bridge:
         else:
             ports = [self.ports[port_id]]
         msg = json.dumps(msg)
-        for p in ports:
-            self.send_message(msg, ports=ports)
+        self.send_message(msg, ports)
 
     def process_message(self, data, pid):
+        """records new hosts on forwarding table and delegates further
+        processing to other methods
+        """
         msg = json.loads(data)
         self.ftable.write_row(msg['source'], pid)
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg['message'], pid)
         if msg['type'] == 'data':
-            self.forward_message(msg)
+            self.forward_message(msg, pid)
 
     def send_bpdus(self):
+        """recursively sends BPDUs on a seperate thread every 500ms
+        """
         self.send_message(self.make_bpdu_packet())
         threading.Timer(0.5, self.send_bpdus).start()
 
     def run(self):
+        """constantly check ports for incomming messages
+        """
         self.send_bpdus()
         while True:
             # Calls select with all the sockets; change the timeout value (1)
@@ -115,6 +147,8 @@ class Bridge:
                 self.process_message(data, s.fileno())
 
 if __name__ == '__main__':
+    """sets up and runs bridge
+    """
     bid = sys.argv[1]
     LAN = sys.argv[2:]
     bridge = Bridge(bid, LAN)
