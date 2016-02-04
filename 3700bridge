@@ -72,7 +72,7 @@ class Bridge:
                           packet['source']
                           )
         if other_bpdu < self.bpdu:
-            use_bpdu(other_bpdu, pid)
+            self.use_bpdu(other_bpdu, pid)
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
