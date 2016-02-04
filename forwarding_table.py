@@ -8,7 +8,7 @@ class ForwardingTable:
         self.table = {}
 
     def write_row(self, mac_addr, port):
-        """writes new roe to table
+        """writes new row to table
         """
         self.table[mac_addr] = (port, datetime.now())
 
@@ -24,3 +24,8 @@ class ForwardingTable:
             del self.table[mac_addr]
             return -1
         return entry[0]
+
+    def flush(self):
+        """flushes all entries
+        """
+        self.table = {}

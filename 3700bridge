@@ -124,7 +124,7 @@ class Bridge:
         self.ftable.write_row(msg['source'], pid)
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg['message'], pid)
-        if msg['type'] == 'data':
+        if msg['type'] == 'data'and not pid in self.closed_ports:
             self.forward_message(msg, pid)
 
     def send_bpdus(self):
