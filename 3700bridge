@@ -130,7 +130,7 @@ class Bridge:
     def send_bpdus(self):
         """recursively sends BPDUs on a seperate thread every 500ms
         """
-        self.send_message(self.make_bpdu_packet())
+        self.send_message(self.make_bpdu_packet(), self.ports.values())
         threading.Timer(0.5, self.send_bpdus).start()
 
     def run(self):
