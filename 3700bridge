@@ -6,6 +6,7 @@ import socket
 import select
 import threading
 
+from bpdu import Bpdu
 from forwarding_table import ForwardingTable
 
 def pad(name):
@@ -15,19 +16,6 @@ def pad(name):
     while len(result) < 108:
         result += '\0'
     return result
-
-def compare_bpdus(bpdu1, bpdu2):
-    """compares 2 BPDU messages and indicates which should be used
-    -1 for bpud1
-    1 for bpdu2
-    """
-    if bpdu1['root'] < bpdu2['root']:
-        return -1
-    elif bpdu1['root'] == bpdu2['root'] and bpdu1['cost'] < bpdu2['cost']:
-        return -1
-    elif bpdu1['root'] == bpdu2['root'] and bpdu1['cost'] == bpdu2['cost'] and bpdu1['id'] < bpdu2['id']:
-        return -1
-    return 1
 
 class Bridge:
 
@@ -40,7 +28,7 @@ class Bridge:
         self.ports = {}
         self.closed_ports = set()
         self.root_port = None
-        self.bpdu = {'root': bid, 'cost': 0, 'id': bid}
+        self.bpdu = Bpdu(bid, 0, bid)
 
         # creates sockets and connects to them
         for i in range(len(LAN)):
@@ -70,27 +58,21 @@ class Bridge:
     def use_bpdu(self, bpdu, pid):
         """configures bridge based on better BPDU
         """
-        print 'New root: {id}/{root}'.format(id=self.id, root=bpdu['root'])
+        print 'New root: {id}/{root}'.format(id=self.id, root=bpdu.root)
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
         self.root_port = self.ports[pid]
-        self.bpdu = bpdu
-        self.bpdu['cost'] += 1
+        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
 
-    def make_bpdu_packet(self):
-        """creates BPDU message based on current bridge configuration and given format
-
-        {"source":"02a1", "dest":"ffff", "type": "bpdu",
-        "message":{"id":"92b4", "root":"02a1", "cost":3}}
-        """
-        bpdu_packet = {'source': self.id, 'dest': 'ffff', 'type': 'bpdu', 'message': self.bpdu}
-        return json.dumps(bpdu_packet)
-
-    def process_bpdu(self, msg, pid):
+    def process_bpdu(self, packet, pid):
         """compares incoming BPDU messages to the current bridge configuration
         updates the bridge if necessary
         """
-        if compare_bpdus(self.bpdu, msg) > 1:
-            self.use_bpdu(msg, pid)
+        other_bpdu = Bpdu(packet['message']['root'],
+                          packet['message']['cost'],
+                          packet['source']
+                          )
+        if other_bpdu < self.bpdu:
+            use_bpdu(other_bpdu, pid)
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
@@ -123,14 +105,14 @@ class Bridge:
         msg = json.loads(data)
         self.ftable.write_row(msg['source'], pid)
         if msg['type'] == 'bpdu':
-            self.process_bpdu(msg['message'], pid)
+            self.process_bpdu(msg, pid)
         if msg['type'] == 'data'and not pid in self.closed_ports:
             self.forward_message(msg, pid)
 
     def send_bpdus(self):
         """recursively sends BPDUs on a seperate thread every 500ms
         """
-        self.send_message(self.make_bpdu_packet(), self.ports.values())
+        self.send_message(str(self.bpdu), self.ports.values())
         threading.Timer(0.5, self.send_bpdus).start()
 
     def run(self):
