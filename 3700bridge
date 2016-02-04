@@ -89,8 +89,8 @@ class Bridge:
     def forward_message(self, msg, rescv_pid):
         """handles sending message to destination
         """
-        dest_mac = msg['dest']
-        port_id = self.ftable.read_row(dest_mac)
+        self.ftable.write_row(msg['source'], pid)
+        port_id = self.ftable.read_row(msg['dest'])
         if port_id < 0:
             ports = self.get_open_ports()
         else:
@@ -103,7 +103,6 @@ class Bridge:
         processing to other methods
         """
         msg = json.loads(data)
-        self.ftable.write_row(msg['source'], pid)
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg, pid)
         if msg['type'] == 'data'and not pid in self.closed_ports:
