@@ -34,13 +34,11 @@ class Bridge:
         self.bpdu = Bpdu(bid, 0, bid)
         self.default_bpdu = Bpdu(bid, 0, bid)
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
-
         # creates sockets and connects to them
         for lan in lans:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-            s.connect(pad(lan)
+            s.connect(pad(lan))
             self.ports[s.fileno()] = s
-
         print "Bridge " + bid + " starting up\n"
 
     def disable_port(self, pid):
