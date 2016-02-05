@@ -90,7 +90,7 @@ class Bridge:
     def forward_message(self, msg, rescv_pid):
         """handles sending message to destination
         """
-        self.ftable.write_row(msg['source'], pid)
+        self.ftable.write_row(msg['source'], rescv_pid)
         port_id = self.ftable.read_row(msg['dest'])
         if port_id < 0:
             ports = self.get_open_ports()
