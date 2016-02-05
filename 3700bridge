@@ -37,7 +37,7 @@ class Bridge:
         # creates sockets and connects to them
         for lan in lans:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-            s.connect(pad(lan)
+            s.connect(pad(lan))
             self.ports[s.fileno()] = s
         print "Bridge " + bid + " starting up\n"
 
