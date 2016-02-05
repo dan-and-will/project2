@@ -18,7 +18,11 @@ def pad(name):
         result += '\0'
     return result
 
+DEFAULT_BPDU = None
+BPDU_SEND_INTERVAL = timedelta(seconds=0.5)
+
 class Bridge:
+
 
     def __init__(self, bid, LANs):
         """sets up bridge with command line params and default values
@@ -30,6 +34,8 @@ class Bridge:
         self.closed_ports = set()
         self.root_port = None
         self.bpdu = Bpdu(bid, 0, bid)
+        DEFAULT_BPDU = Bpdu(bid, 0, bid)
+        self.last_bpdu_time = datetime.utcfromtimestamp(0)
 
         # creates sockets and connects to them
         for i in range(len(LAN)):
@@ -74,6 +80,8 @@ class Bridge:
                           )
         if other_bpdu < self.bpdu:
             self.use_bpdu(other_bpdu, pid)
+        else:
+            self.bpdu.reset_timeout()
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
@@ -109,22 +117,20 @@ class Bridge:
         if msg['type'] == 'data'and not pid in self.closed_ports:
             self.forward_message(msg, pid)
 
-    def send_bpdus(self):
-        """recursively sends BPDUs on a seperate thread every 500ms
+    def send_bpdu(self, send_now=False):
+        """handles deciding whether it's time to send a BPDU and what BPDU to send
         """
-        self.send_message(str(self.bpdu), self.ports.values())
-        #threading.Timer(0.5, self.send_bpdus).start()
+        if datetime.now()- self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
+            if self.bpdu.is_timedout:
+                self.bpdu = DEFAULT_BPDU
+            self.bpdu.reset_timeout()
+            self.send_message(str(self.bpdu), self.ports.values())
 
     def run(self):
         """constantly check ports for incomming messages
         """
-        bpdu_wait = timedelta(seconds=0.5)
-        self.send_bpdus()
-        last_sent = datetime.now()
         while True:
-            if datetime.now() - last_sent > bpdu_wait:
-                self.send_bpdus()
-                last_sent = datetime.now()
+            self.send_bpdu()
 
             # Calls select with all the sockets; change the timeout value (1)
             ready, _, _ = select.select(self.ports.values(), [], [], 1)
