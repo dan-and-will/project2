@@ -18,11 +18,9 @@ def pad(name):
         result += '\0'
     return result
 
-DEFAULT_BPDU = None
 BPDU_SEND_INTERVAL = timedelta(seconds=0.5)
 
 class Bridge:
-
 
     def __init__(self, bid, LANs):
         """sets up bridge with command line params and default values
@@ -34,7 +32,7 @@ class Bridge:
         self.closed_ports = set()
         self.root_port = None
         self.bpdu = Bpdu(bid, 0, bid)
-        DEFAULT_BPDU = Bpdu(bid, 0, bid)
+        self.default_bpdu = Bpdu(bid, 0, bid)
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
 
         # creates sockets and connects to them
@@ -95,13 +93,15 @@ class Bridge:
         for s in ready:
             s.send(msg)
 
-    def forward_message(self, msg, rescv_pid):
+    def forward_message(self, msg, recv_pid):
         """handles sending message to destination
         """
-        self.ftable.write_row(msg['source'], rescv_pid)
+        self.ftable.write_row(msg['source'], recv_pid)
         port_id = self.ftable.read_row(msg['dest'])
         if port_id < 0:
             ports = self.get_open_ports()
+        elif port_id == recv_pid:
+            return
         else:
             ports = [self.ports[port_id]]
         msg = json.dumps(msg)
@@ -121,9 +121,9 @@ class Bridge:
         """handles deciding whether it's time to send a BPDU and what BPDU to send
         """
         if datetime.now()- self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
-            if self.bpdu.is_timedout:
-                self.bpdu = DEFAULT_BPDU
-            self.bpdu.reset_timeout()
+            if self.bpdu.is_timedout():
+                self.bpdu = self.default_bpdu
+                self.bpdu.reset_timeout()
             self.send_message(str(self.bpdu), self.ports.values())
 
     def run(self):
