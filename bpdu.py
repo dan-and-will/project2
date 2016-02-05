@@ -24,9 +24,9 @@ class Bpdu:
             return True
         return False
 
-    def __str__(self):
+    def create(self, pid):
         packet = {'source': self.bid, 'dest': 'ffff', 'type': 'bpdu',
-                    'message': {'root': self.root, 'cost': self.cost}}
+                    'message': {'id': pid, 'root': self.root, 'cost': self.cost}}
         return json.dumps(packet)
 
     def is_timedout(self):

@@ -34,13 +34,11 @@ class Bridge:
         self.bpdu = Bpdu(bid, 0, bid)
         self.default_bpdu = Bpdu(bid, 0, bid)
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
-
         # creates sockets and connects to them
         for lan in lans:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(lan)
             self.ports[s.fileno()] = s
-
         print "Bridge " + bid + " starting up\n"
 
     def disable_port(self, pid):
@@ -72,10 +70,15 @@ class Bridge:
         """compares incoming BPDU messages to the current bridge configuration
         updates the bridge if necessary
         """
+        if packet['source'] == self.id and packet['message']['id'] > pid:
+            self.disable_port(pid)
+            return
         other_bpdu = Bpdu(packet['message']['root'],
                           packet['message']['cost'],
                           packet['source']
                           )
+        if self.bpdu.cost < other_bpdu.cost or (self.bpdu.cost == other_bpdu.cost and self.bpdu.id < other_bpdu.id):
+            self.enable_port(pid)
         if other_bpdu < self.bpdu:
             self.use_bpdu(other_bpdu, pid)
         else:
@@ -125,7 +128,8 @@ class Bridge:
                 self.bpdu = self.default_bpdu
                 self.bpdu.reset_timeout()
             self.last_bpdu_time = datetime.now()
-            self.send_message(str(self.bpdu), self.ports.values())
+            for pid, port in self.ports.iteritems():
+                port.send(self.bpdu.create(pid))
 
     def run(self):
         """constantly check ports for incomming messages
