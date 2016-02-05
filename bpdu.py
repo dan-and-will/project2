@@ -2,8 +2,6 @@ from datetime import datetime, timedelta
 import json
 
 TIMEOUT = timedelta(seconds=.75)
-FORMAT = {"source":"02a1", "dest":"ffff", "type": "bpdu",
-      "message":{"root":"02a1", "cost":3}}
 
 class Bpdu:
 
@@ -11,7 +9,7 @@ class Bpdu:
         self.root = root
         self.cost = cost
         self.bid = bid
-        self.time_created = datetime.now()
+        self.time_updated = datetime.now()
 
     def __lt__(self, other):
         """return True if self is the better BPDU
@@ -30,3 +28,9 @@ class Bpdu:
         packet = {'source': self.bid, 'dest': 'ffff', 'type': 'bpdu',
                     'message': {'root': self.root, 'cost': self.cost}}
         return json.dumps(packet)
+
+    def is_timedout(self):
+        return datetime.now() - self.time_updated > TIMEOUT
+
+    def reset_timeout(self):
+        self.time_updated = datetime.now()
