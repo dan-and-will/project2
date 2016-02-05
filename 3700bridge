@@ -1,5 +1,6 @@
 #!/usr/bin/python -u
 # The -u makes output unbuffered, so it will show up immediately
+from datetime import datetime, timedelta
 import json
 import sys
 import socket
@@ -112,13 +113,19 @@ class Bridge:
         """recursively sends BPDUs on a seperate thread every 500ms
         """
         self.send_message(str(self.bpdu), self.ports.values())
-        threading.Timer(0.5, self.send_bpdus).start()
+        #threading.Timer(0.5, self.send_bpdus).start()
 
     def run(self):
         """constantly check ports for incomming messages
         """
+        bpdu_wait = timedelta(seconds=0.5)
         self.send_bpdus()
+        last_sent = datetime.now()
         while True:
+            if datetime.now() - last_sent > bpdu_wait:
+                self.send_bpdus()
+                last_sent = datetime.now()
+
             # Calls select with all the sockets; change the timeout value (1)
             ready, _, _ = select.select(self.ports.values(), [], [], 1)
 
