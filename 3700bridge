@@ -22,12 +22,12 @@ BPDU_SEND_INTERVAL = timedelta(seconds=0.5)
 
 class Bridge:
 
-    def __init__(self, bid, LANs):
+    def __init__(self, bid, lans):
         """sets up bridge with command line params and default values
         """
         self.ftable = ForwardingTable()
         self.id = bid
-        self.LANs = LAN
+        self.lans = lans
         self.ports = {}
         self.closed_ports = set()
         self.root_port = None
@@ -36,9 +36,9 @@ class Bridge:
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
 
         # creates sockets and connects to them
-        for i in range(len(LAN)):
+        for lan in lans:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-            s.connect(pad(LAN[i]))
+            s.connect(pad(lan)
             self.ports[s.fileno()] = s
 
         print "Bridge " + bid + " starting up\n"
@@ -120,10 +120,11 @@ class Bridge:
     def send_bpdu(self, send_now=False):
         """handles deciding whether it's time to send a BPDU and what BPDU to send
         """
-        if datetime.now()- self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
+        if datetime.now() - self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
             if self.bpdu.is_timedout():
                 self.bpdu = self.default_bpdu
                 self.bpdu.reset_timeout()
+            self.last_bpdu_time = datetime.now()
             self.send_message(str(self.bpdu), self.ports.values())
 
     def run(self):
@@ -144,6 +145,6 @@ if __name__ == '__main__':
     """sets up and runs bridge
     """
     bid = sys.argv[1]
-    LAN = sys.argv[2:]
-    bridge = Bridge(bid, LAN)
+    lans = sys.argv[2:]
+    bridge = Bridge(bid, lans)
     bridge.run()
