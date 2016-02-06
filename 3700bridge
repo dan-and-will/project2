@@ -38,7 +38,7 @@ class Bridge:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(lan))
             self.ports[s.fileno()] = s
-        print "Bridge " + bid + " starting up\n"
+        print "Bridge {bid} starting up".format(bid=bid)
 
     def get_bpdu(self):
         if self.bpdu.is_timedout():
@@ -95,6 +95,7 @@ class Bridge:
         if use_other:
             self.use_bpdu(other_bpdu, pid)
         if enable_port:
+            print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
             self.enable_port(pid)
         else:
             self.disable_port(pid)
