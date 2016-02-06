@@ -77,7 +77,7 @@ class Bridge:
                           packet['message']['cost'],
                           packet['source']
                           )
-        if self.bpdu.cost < other_bpdu.cost or (self.bpdu.cost == other_bpdu.cost and self.bpdu.id < other_bpdu.id):
+        if self.bpdu.cost < other_bpdu.cost or (self.bpdu.cost == other_bpdu.cost and self.bpdu.bid < other_bpdu.bid):
             self.enable_port(pid)
         if other_bpdu < self.bpdu:
             self.use_bpdu(other_bpdu, pid)
