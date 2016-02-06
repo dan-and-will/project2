@@ -32,7 +32,6 @@ class Bridge:
         self.closed_ports = set()
         self.root_pid = None
         self.bpdu = Bpdu(bid, 0, bid)
-        self.default_bpdu = Bpdu(bid, 0, bid)
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
         # creates sockets and connects to them
         for lan in lans:
@@ -40,6 +39,12 @@ class Bridge:
             s.connect(pad(lan))
             self.ports[s.fileno()] = s
         print "Bridge " + bid + " starting up\n"
+
+    def get_bpdu(self):
+        if self.bpdu.is_timedout():
+            print 'BPDU timeout'
+            self.bpdu = Bpdu(self.id, 0, self.id)
+        return self.bpdu
 
     def disable_port(self, pid):
         """disables port
@@ -80,14 +85,19 @@ class Bridge:
                           packet['message']['cost'],
                           packet['source']
                           )
-        if other_bpdu < self.bpdu:
-            self.use_bpdu(other_bpdu, pid)
+        # if other_bpdu < self.get_bpdu():
+        #     self.use_bpdu(other_bpdu, pid)
+        #     self.enable_port(pid)
+        # else:
+        #     print "Designated port: {bid} / {pid}".format(bid=self.id, pid=pid)
+        #     self.enable_port(pid)
+        use_other, enable_port = other_bpdu.compare(self.get_bpdu())
+        if use_other:
+            self.use_bpdu(other_bpdu)
+        if enable_port:
             self.enable_port(pid)
-        elif other_bpdu.root == self.bpdu.root and other_bpdu.cost <= self.bpdu.cost and other_bpdu.bid < self.bpdu.bid:
-            self.disable_port(pid)
         else:
-            print "Designated port: {bid} / {pid}".format(bid=self.id, pid=pid)
-            self.enable_port(pid)
+            self.disable_port(pid)
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
@@ -141,11 +151,9 @@ class Bridge:
         """handles deciding whether it's time to send a BPDU and what BPDU to send
         """
         if datetime.now() - self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
-            if self.bpdu.is_timedout():
-                self.bpdu = self.default_bpdu
             self.last_bpdu_time = datetime.now()
             for pid, port in self.ports.iteritems():
-                port.send(self.bpdu.create(pid))
+                port.send(self.get_bpdu().create(pid))
 
     def run(self):
         """constantly check ports for incomming messages

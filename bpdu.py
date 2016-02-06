@@ -11,18 +11,20 @@ class Bpdu:
         self.bid = bid
         self.time_updated = datetime.now()
 
-    def __lt__(self, other):
-        """return True if self is the better BPDU
+    def compare(self, other):
+        """return tuple
+        first el is self is better than other
+        second el is port should be enabled
         """
         if not isinstance(other, Bpdu):
             raise NotImplementedError
         if self.root < other.root:
-            return True
+            return (True, True)
         if self.root == other.root and self.cost < other.cost:
-            return True
+            return (True, False)
         if self.root == other.root and self.cost == other.cost and self.bid < other.bid:
-            return True
-        return False
+            return (True, False)
+        return (False, True)
 
     def create(self, pid):
         packet = {'source': self.bid, 'dest': 'ffff', 'type': 'bpdu',
