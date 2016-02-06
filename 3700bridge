@@ -94,7 +94,7 @@ class Bridge:
         """
         _, ready, _ = select.select({}, ports, [], 1)
         ####TODO: for debugging. DELETE
-        print 'Sending msg id {msg} on ports: {ready}/{ports}'.format(msg=msg['message']['id'],
+        print 'Sending msg {msg} on ports: {ready}/{ports}'.format(msg=msg[msg.find('id')-1:msg.find('id')+7],
                                                                ready=[s.fileno() for s in ready],
                                                                ports=[s.fileno() for s in ports]
                                                                )
@@ -106,7 +106,7 @@ class Bridge:
         """
         if recv_pid in self.closed_ports:
             return
-        print 'Received message {id} on port {pid} from {source} to {dest}'.format(id=msg['mesage']['id'],
+        print 'Received message {id} on port {pid} from {source} to {dest}'.format(id=msg['message']['id'],
                                                                                    pid=recv_pid,
                                                                                    source=msg['source'],
                                                                                    dest=msg['dest']
@@ -114,7 +114,7 @@ class Bridge:
         self.ftable.write_row(msg['source'], recv_pid)
         dest_pid = self.ftable.read_row(msg['dest'])
         if dest_pid < 0:
-            print 'Broadcasting message <id> to all ports {pts}'.format(id=msg['message']['id'])
+            print 'Broadcasting message {id} to all ports'.format(id=msg['message']['id'])
             ports = self.get_open_ports(exclude_pid=recv_pid)
         elif dest_pid == recv_pid:
             print 'Not forwarding message {id}'.format(id=msg['message']['id'])
