@@ -93,7 +93,7 @@ class Bridge:
         #     self.enable_port(pid)
         use_other, enable_port = other_bpdu.compare(self.get_bpdu())
         if use_other:
-            self.use_bpdu(other_bpdu)
+            self.use_bpdu(other_bpdu, pid)
         if enable_port:
             self.enable_port(pid)
         else:
