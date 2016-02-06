@@ -38,11 +38,11 @@ class Bridge:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(lan))
             self.ports[s.fileno()] = s
-        print "Bridge {bid} starting up".format(bid=bid)
+        # print "Bridge {bid} starting up".format(bid=bid)
 
     def get_bpdu(self):
         if self.bpdu.is_timedout():
-            print 'BPDU timeout'
+            # print 'BPDU timeout'
             self.bpdu = Bpdu(self.id, 0, self.id)
         return self.bpdu
 
@@ -68,8 +68,8 @@ class Bridge:
     def use_bpdu(self, bpdu, pid):
         """configures bridge based on better BPDU
         """
-        print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
-        print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
+        # print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
+        # print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
         self.root_pid = pid
         self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
         self.send_bpdu(send_now=True)
@@ -85,6 +85,10 @@ class Bridge:
                           packet['message']['cost'],
                           packet['source']
                           )
+        print "THIIIIIIIIIIIIIIIIIIS"
+        print self.get_bpdu().create(-1)
+        print other_bpdu.create(-1)
+        print "THAAAAAAAAAAAAAAAAAAT"
         # if other_bpdu < self.get_bpdu():
         #     self.use_bpdu(other_bpdu, pid)
         #     self.enable_port(pid)
@@ -95,7 +99,7 @@ class Bridge:
         if use_other:
             self.use_bpdu(other_bpdu, pid)
         if enable_port:
-            print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
+            # print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
             self.enable_port(pid)
         else:
             self.disable_port(pid)
@@ -146,7 +150,7 @@ class Bridge:
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg, pid)
         if msg['type'] == 'data':
-            self.forward_message(msg, pid)
+            # self.forward_message(msg, pid)
 
     def send_bpdu(self, send_now=False):
         """handles deciding whether it's time to send a BPDU and what BPDU to send
