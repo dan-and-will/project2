@@ -150,7 +150,7 @@ class Bridge:
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg, pid)
         if msg['type'] == 'data':
-            # self.forward_message(msg, pid)
+            pass # self.forward_message(msg, pid)
 
     def send_bpdu(self, send_now=False):
         """handles deciding whether it's time to send a BPDU and what BPDU to send
