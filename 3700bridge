@@ -51,6 +51,7 @@ class Bridge:
     def enable_port(self, pid):
         """enables port
         """
+        print 'Enabled port: {id}/{pid}'.format(id=self.id, pid=pid)
         self.closed_ports.discard(pid)
 
     def get_open_ports(self, exclude_pid=None):
@@ -93,9 +94,9 @@ class Bridge:
         """
         _, ready, _ = select.select({}, ports, [], 1)
         ####TODO: for debugging. DELETE
-        print 'Sending {msg} on ports: {ready}/{ports}'.format(msg=msg,
+        print 'Sending msg id {msg} on ports: {ready}/{ports}'.format(msg=msg['message']['id'],
                                                                ready=[s.fileno() for s in ready],
-                                                               ports=self.ports.keys()
+                                                               ports=[s.fileno() for s in ports]
                                                                )
         for s in ready:
             s.send(msg)
@@ -105,15 +106,24 @@ class Bridge:
         """
         if recv_pid in self.closed_ports:
             return
+        print 'Received message {id} on port {pid} from {source} to {dest}'.format(id=msg['mesage']['id'],
+                                                                                   pid=recv_pid,
+                                                                                   source=msg['source'],
+                                                                                   dest=msg['dest']
+                                                                                   )
         self.ftable.write_row(msg['source'], recv_pid)
-        port_id = self.ftable.read_row(msg['dest'])
-
-        if port_id < 0:
+        dest_pid = self.ftable.read_row(msg['dest'])
+        if dest_pid < 0:
+            print 'Broadcasting message <id> to all ports {pts}'.format(id=msg['message']['id'])
             ports = self.get_open_ports(exclude_pid=recv_pid)
-        elif port_id == recv_pid:
+        elif dest_pid == recv_pid:
+            print 'Not forwarding message {id}'.format(id=msg['message']['id'])
             return
         else:
-            ports = [self.ports[port_id]]
+            print 'Forwarding message {id} to port {pid}'.format(id=msg['message']['id'],
+                                                                 pid=recv_pid
+                                                                 )
+            ports = [self.ports[dest_pid]]
         msg = json.dumps(msg)
         self.send_message(msg, ports)
 
@@ -124,7 +134,7 @@ class Bridge:
         msg = json.loads(data)
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg, pid)
-        if msg['type'] == 'data'and not pid in self.closed_ports:
+        if msg['type'] == 'data':
             self.forward_message(msg, pid)
 
     def send_bpdu(self, send_now=False):
