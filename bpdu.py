@@ -19,12 +19,12 @@ class Bpdu:
         if not isinstance(other, Bpdu):
             raise NotImplementedError
         if self.root < other.root:
-            return (True, True)
+            return (False, True)
         if self.root == other.root and self.cost < other.cost:
-            return (True, False)
+            return (False, True)
         if self.root == other.root and self.cost == other.cost and self.bid < other.bid:
-            return (True, False)
-        return (False, True)
+            return (False, True)
+        return (True, False)
 
     def create(self, pid):
         packet = {'source': self.bid, 'dest': 'ffff', 'type': 'bpdu',
