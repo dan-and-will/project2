@@ -5,10 +5,11 @@ TIMEOUT = timedelta(seconds=.75)
 
 class Bpdu:
 
-    def __init__(self, root, cost, bid):
+    def __init__(self, root, cost, bid, pid):
         self.root = root
         self.cost = cost
         self.bid = bid
+        self.pid = pid
         self.time_updated = datetime.now()
 
     def compare(self, other):
