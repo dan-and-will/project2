@@ -30,7 +30,7 @@ class Bridge:
         self.lans = lans
         self.ports = {}
         self.closed_ports = set()
-        self.root_port = None
+        self.root_pid = None
         self.bpdu = Bpdu(bid, 0, bid)
         self.default_bpdu = Bpdu(bid, 0, bid)
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
@@ -44,8 +44,9 @@ class Bridge:
     def disable_port(self, pid):
         """disables port
         """
-        print 'Disabled port: {id}/{pid}'.format(id=self.id, pid=pid)
-        self.closed_ports.add(pid)
+        if pid != self.root_pid:
+            print 'Disabled port: {id}/{pid}'.format(id=self.id, pid=pid)
+            self.closed_ports.add(pid)
 
     def enable_port(self, pid):
         """enables port
@@ -63,8 +64,9 @@ class Bridge:
         """
         print 'New root: {id}/{root}'.format(id=self.id, root=bpdu.root)
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
-        self.root_port = self.ports[pid]
+        self.root_pid = pid
         self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
+        self.send_bpdu(send_now=True)
 
     def process_bpdu(self, packet, pid):
         """compares incoming BPDU messages to the current bridge configuration
@@ -77,12 +79,11 @@ class Bridge:
                           packet['message']['cost'],
                           packet['source']
                           )
-        if self.bpdu.cost < other_bpdu.cost or (self.bpdu.cost == other_bpdu.cost and self.bpdu.bid < other_bpdu.bid):
-            self.enable_port(pid)
         if other_bpdu < self.bpdu:
             self.use_bpdu(other_bpdu, pid)
-        else:
-            self.bpdu.reset_timeout()
+            self.enable_port(pid)
+        elif other_bpdu.root == self.bpdu.root and other_bpdu.cost <= self.bpdu.cost and other_bpdu.bid < self.bpdu.bid:
+            self.disable_port(pid)
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
@@ -99,10 +100,12 @@ class Bridge:
     def forward_message(self, msg, recv_pid):
         """handles sending message to destination
         """
+        if recv_pid in self.closed_ports:
+            return
         self.ftable.write_row(msg['source'], recv_pid)
         port_id = self.ftable.read_row(msg['dest'])
         if port_id < 0:
-            ports = self.get_open_ports()
+            ports = self.get_open_ports(exclude_pid=recv_pid)
         elif port_id == recv_pid:
             return
         else:
@@ -126,7 +129,6 @@ class Bridge:
         if datetime.now() - self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
             if self.bpdu.is_timedout():
                 self.bpdu = self.default_bpdu
-                self.bpdu.reset_timeout()
             self.last_bpdu_time = datetime.now()
             for pid, port in self.ports.iteritems():
                 port.send(self.bpdu.create(pid))

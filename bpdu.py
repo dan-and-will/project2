@@ -31,6 +31,3 @@ class Bpdu:
 
     def is_timedout(self):
         return datetime.now() - self.time_updated > TIMEOUT
-
-    def reset_timeout(self):
-        self.time_updated = datetime.now()
