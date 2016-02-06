@@ -78,8 +78,9 @@ class Bridge:
         """compares incoming BPDU messages to the current bridge configuration
         updates the bridge if necessary
         """
-        if packet['source'] == self.id and packet['message']['id'] > pid:
-            self.disable_port(pid)
+        if packet['source'] == self.id:
+            if packet['message']['id'] > pid:
+                self.disable_port(pid)
             return
         if packet['source'] == self.get_bpdu().source and pid < self.get_bpdu().pid:
             self.disable_port(pid)
