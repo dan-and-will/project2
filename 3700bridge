@@ -82,7 +82,7 @@ class Bridge:
             if packet['message']['id'] > pid:
                 self.disable_port(pid)
             return
-        if packet['source'] == self.get_bpdu().source and pid < self.get_bpdu().pid:
+        if packet['source'] == self.get_bpdu().bid and pid < self.get_bpdu().pid:
             self.disable_port(pid)
             return
         other_bpdu = Bpdu(packet['message']['root'],
