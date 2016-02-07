@@ -69,7 +69,7 @@ class Bridge:
         """configures bridge based on better BPDU
         """
         print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
-        print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
+        print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=bpdu.pid)
         self.root_pid = bpdu.pid
         self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, bpdu.pid)
         self.send_bpdu(send_now=True)
