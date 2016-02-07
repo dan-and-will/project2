@@ -5,10 +5,11 @@ TIMEOUT = timedelta(seconds=.75)
 
 class Bpdu:
 
-    def __init__(self, root, cost, bid):
+    def __init__(self, root, cost, bid, pid):
         self.root = root
         self.cost = cost
         self.bid = bid
+        self.pid = pid
         self.time_updated = datetime.now()
 
     def compare(self, other):
@@ -18,12 +19,24 @@ class Bpdu:
         """
         if not isinstance(other, Bpdu):
             raise NotImplementedError
+        print 'compare roots'
         if self.root < other.root:
+            print 'root<root'
             return (False, True)
-        if self.root == other.root and self.cost < other.cost:
-            return (False, True)
-        if self.root == other.root and self.cost == other.cost and self.bid < other.bid:
-            return (False, True)
+        elif self.root == other.root:
+            print 'compare costs'
+            if self.cost < other.cost:
+                print 'cost<cost'
+                return (False, True)
+            elif self.cost == other.cost:
+                print 'compare bids'
+                if self.bid < other.bid:
+                    print 'bid<bid'
+                    return (False, True)
+                elif self.bid == other.bid and self.pid < other.pid:
+                    print 'pid<pid'
+                    return (False, True)
+        print 'use other'
         return (True, False)
 
     def create(self, pid):
