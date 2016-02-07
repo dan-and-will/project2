@@ -65,13 +65,13 @@ class Bridge:
         """
         return [self.ports[pid] for pid in self.ports if pid not in self.closed_ports and pid != exclude_pid]
 
-    def use_bpdu(self, bpdu, pid):
+    def use_bpdu(self, bpdu):
         """configures bridge based on better BPDU
         """
         print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
-        self.root_pid = pid
-        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, pid)
+        self.root_pid = bpdu.pid
+        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, bpdu.pid)
         self.send_bpdu(send_now=True)
 
     def process_bpdu(self, packet, pid):
@@ -95,7 +95,7 @@ class Bridge:
         #     self.enable_port(pid)
         use_other, enable_port = self.get_bpdu().compare(other_bpdu)
         if use_other:
-            self.use_bpdu(other_bpdu, pid)
+            self.use_bpdu(other_bpdu)
         if enable_port:
             print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
             self.enable_port(pid)
