@@ -98,6 +98,7 @@ class Bridge:
         #     self.enable_port(pid)
         use_other, enable_port = self.get_bpdu().compare(other_bpdu)
         if use_other:
+            print 'OOTTHHEEEEEERRRRRRRR'
             self.use_bpdu(other_bpdu, pid)
         if enable_port:
             # print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
