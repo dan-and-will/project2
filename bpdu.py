@@ -30,12 +30,15 @@ class Bpdu:
                 return (False, True)
             elif self.cost == other.cost:
                 print 'compare bids'
-                if self.bid < other.bid:
+                if self.bid > other.bid:
+                    print 'bid>bid'
+                    return (False, False)
+                elif self.bid < other.bid:
                     print 'bid<bid'
                     return (False, True)
                 elif self.bid == other.bid and self.pid < other.pid:
                     print 'pid<pid'
-                    return (False, True)
+                    return (False, False)
         print 'use other'
         return (True, False)
 
