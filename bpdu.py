@@ -27,6 +27,8 @@ class Bpdu:
             elif self.cost == other.cost:
                 if self.bid > other.bid:
                     return (False, False)
+                elif self.bid < other.bid:
+                    return (False, True)
                 elif self.bid == other.bid and self.pid < other.pid:
                     return (False, False)
         return (True, False)
