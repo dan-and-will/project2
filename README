@@ -1,3 +1,7 @@
+Project 2
+Dan Russotto and Will DeRivera
+Team dan_and_will
+
 To reach the milestone, we thought about each of the things that we needed to implement,
 and then worked through the list until we felt that we got to a working state. We started
 with the forwarding table, and then moved on to updating BPDUs, and then enabling and disabling
