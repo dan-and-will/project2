@@ -21,10 +21,14 @@ class Bpdu:
             raise NotImplementedError
         if self.root < other.root:
             return (False, True)
-        if self.root == other.root and self.cost < other.cost:
-            return (False, True)
-        if self.root == other.root and self.cost == other.cost and self.bid < other.bid:
-            return (False, True)
+        elif self.root == other.root:
+            if self.cost < other.cost:
+                return (False, True)
+            elif self.cost == other.cost:
+                if self.bid < other.bid:
+                    return (False, True)
+                elif self.bid == other.bid and self.pid < other.pid:
+                        return (False, True)
         return (True, False)
 
     def create(self, pid):
