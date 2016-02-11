@@ -14,24 +14,33 @@ class Bpdu:
 
     def compare(self, other):
         """return tuple
-        first el is self is better than other
+        first el is use other BPDU
         second el is port should be enabled
         """
         if not isinstance(other, Bpdu):
             raise NotImplementedError
+        print 'compare roots'
+        print self.create(-1)
+        print other.create(-1)
         if self.root < other.root:
             return (False, True)
         elif self.root == other.root:
             if self.cost < other.cost:
+                # other is a child node
                 return (False, True)
             elif self.cost == other.cost:
-                if self.bid > other.bid:
-                    return (False, False)
-                elif self.bid < other.bid:
+                # other is a sibling node
+                if self.bid < other.bid:
                     return (False, True)
-                elif self.bid == other.bid and self.pid < other.pid:
+                elif self.bid > other.bid:
                     return (False, False)
-        return (True, False)
+                elif self.pid < other.pid:
+                    # other is self
+                    return (False, False)
+            elif self.cost == other.cost + 1:
+                # using other will result in path of same cost
+                return (False, False)
+        return (True, True)
 
     def create(self, pid):
         packet = {'source': self.bid, 'dest': 'ffff', 'type': 'bpdu',
