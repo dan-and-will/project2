@@ -1,0 +1,16 @@
+Project 2
+Dan Russotto and Will DeRivera
+Team dan_and_will
+
+To reach the milestone, we thought about each of the things that we needed to implement,
+and then worked through the list until we felt that we got to a working state. We started
+with the forwarding table, and then moved on to updating BPDUs, and then enabling and disabling
+ports as we got more information. Our first major challenge was handling BPDUs that we sent
+coming back from a LAN that the bridge was connected to on multiple ports. Another challenge we
+had to deal with was packets circulating throughout the network, and had to rethink our logic
+regarding when we should enable and disable ports. To debug our code, we used a mixture of print 
+statements and careful examination of the output from the run scripts, looking for behavior that
+seemed unexpected or incorrect, and then thought about why it was happening and how to fix it.
+For each of the configuration files that was tripping up our code, we also drew out the network
+topology to see what's different to narrow down why some configurations succeeded and others 
+did not.

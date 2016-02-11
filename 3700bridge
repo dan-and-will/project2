@@ -1,4 +1,11 @@
 #!/usr/bin/python -u
+
+#Project 2
+#Dan Russotto and Will DeRivera
+#Team dan_and_will
+
+
+
 # The -u makes output unbuffered, so it will show up immediately
 from datetime import datetime, timedelta
 import json
