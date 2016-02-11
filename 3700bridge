@@ -1,12 +1,10 @@
 #!/usr/bin/python -u
+# The -u makes output unbuffered, so it will show up immediately
 
 #Project 2
 #Dan Russotto and Will DeRivera
 #Team dan_and_will
 
-
-
-# The -u makes output unbuffered, so it will show up immediately
 from datetime import datetime, timedelta
 import json
 import sys
@@ -45,7 +43,7 @@ class Bridge:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
             s.connect(pad(lan))
             self.ports[s.fileno()] = s
-        # print "Bridge {bid} starting up".format(bid=bid)
+        print "Bridge {bid} starting up".format(bid=bid)
 
     def get_bpdu(self):
         if self.bpdu.is_timedout():
@@ -75,8 +73,8 @@ class Bridge:
     def use_bpdu(self, bpdu):
         """configures bridge based on better BPDU
         """
-        # print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
-        # print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
+        print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
+        print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=bpdu.pid)
         self.root_pid = bpdu.pid
         self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, bpdu.pid)
         self.send_bpdu(send_now=True)
@@ -85,31 +83,17 @@ class Bridge:
         """compares incoming BPDU messages to the current bridge configuration
         updates the bridge if necessary
         """
-        if packet['source'] == self.id:
-            if packet['message']['id'] > pid:
-                self.disable_port(pid)
-            return
         other_bpdu = Bpdu(packet['message']['root'],
                           packet['message']['cost'],
                           packet['source'],
                           pid
                           )
-        print "THIIIIIIIIIIIIIIIIIIS"
-        print self.get_bpdu().create(-1)
-        print other_bpdu.create(-1)
-        print "THAAAAAAAAAAAAAAAAAAT"
-        # if other_bpdu < self.get_bpdu():
-        #     self.use_bpdu(other_bpdu, pid)
-        #     self.enable_port(pid)
-        # else:
-        #     print "Designated port: {bid} / {pid}".format(bid=self.id, pid=pid)
-        #     self.enable_port(pid)
         use_other, enable_port = self.get_bpdu().compare(other_bpdu)
+        print 'use_other={uo}, enable_port={ep}'.format(uo=use_other, ep=enable_port)
         if use_other:
-            print 'OOTTHHEEEEEERRRRRRRR'
             self.use_bpdu(other_bpdu)
         if enable_port:
-            # print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
+            print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
             self.enable_port(pid)
         else:
             self.disable_port(pid)
@@ -160,15 +144,16 @@ class Bridge:
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg, pid)
         if msg['type'] == 'data':
-            pass # self.forward_message(msg, pid)
+            pass#self.forward_message(msg, pid)
 
     def send_bpdu(self, send_now=False):
         """handles deciding whether it's time to send a BPDU and what BPDU to send
         """
         if datetime.now() - self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
             self.last_bpdu_time = datetime.now()
+            bpdu = self.get_bpdu()
             for pid, port in self.ports.iteritems():
-                port.send(self.get_bpdu().create(pid))
+                port.send(bpdu.create(pid))
 
     def run(self):
         """constantly check ports for incomming messages
@@ -177,7 +162,7 @@ class Bridge:
             self.send_bpdu()
 
             # Calls select with all the sockets; change the timeout value (1)
-            ready, _, _ = select.select(self.ports.values(), [], [], 1)
+            ready, _, _ = select.select(self.ports.values(), [], [], 0.25)
 
             # Reads from each of the ready sockets
             for s in ready:
