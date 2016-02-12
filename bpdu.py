@@ -5,10 +5,11 @@ TIMEOUT = timedelta(seconds=.75)
 
 class Bpdu:
 
-    def __init__(self, root, cost, bid):
+    def __init__(self, root, cost, bid, next_hop):
         self.root = root
         self.cost = cost
         self.bid = bid
+        self.next_hop = next_hop
         self.time_updated = datetime.now()
 
     def compare(self, other):
@@ -34,8 +35,11 @@ class Bpdu:
                 else:
                     return (False, False)
             elif self.cost == other.cost + 1:
-                # using other will result in path of same cost
-                return (False, False)
+                # other is direct parent
+                if self.next_hop < other.bid:
+                    return (False, False)
+                elif self.next_hop == other.bid:
+                    self.reset_timeout()
         return (True, True)
 
     def create(self, pid):
@@ -45,3 +49,6 @@ class Bpdu:
 
     def is_timedout(self):
         return datetime.now() - self.time_updated > TIMEOUT
+
+    def reset_timeout(self):
+        self.time_updated = datetime.now()

@@ -28,4 +28,5 @@ class ForwardingTable:
     def flush(self):
         """flushes all entries
         """
+        print 'flush mcgoo'
         self.table = {}
