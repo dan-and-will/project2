@@ -32,11 +32,10 @@ class Bridge:
         """
         self.ftable = ForwardingTable()
         self.id = bid
-        self.lans = lans
         self.ports = {}
         self.closed_ports = set()
         self.root_pid = None
-        self.bpdu = Bpdu(bid, 0, bid, -1)
+        self.bpdu = Bpdu(bid, 0, bid)
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
         # creates sockets and connects to them
         for lan in lans:
@@ -48,7 +47,7 @@ class Bridge:
     def get_bpdu(self):
         if self.bpdu.is_timedout():
             print 'BPDU timeout'
-            self.bpdu = Bpdu(self.id, 0, self.id, -1)
+            self.bpdu = Bpdu(self.id, 0, self.id)
         return self.bpdu
 
     def disable_port(self, pid):
@@ -76,17 +75,20 @@ class Bridge:
         print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=bpdu.pid)
         self.root_pid = bpdu.pid
-        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, bpdu.pid)
+        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
         self.send_bpdu(send_now=True)
 
     def process_bpdu(self, packet, pid):
         """compares incoming BPDU messages to the current bridge configuration
         updates the bridge if necessary
         """
+        if packet['source'] == self.id:
+            if packet['message']['id'] < pid:
+                self.disable_port(pid)
+            return
         other_bpdu = Bpdu(packet['message']['root'],
                           packet['message']['cost'],
-                          packet['source'],
-                          pid
+                          packet['source']
                           )
         use_other, enable_port = self.get_bpdu().compare(other_bpdu)
         print 'use_other={uo}, enable_port={ep}'.format(uo=use_other, ep=enable_port)
@@ -144,7 +146,7 @@ class Bridge:
         if msg['type'] == 'bpdu':
             self.process_bpdu(msg, pid)
         if msg['type'] == 'data':
-            pass#self.forward_message(msg, pid)
+            self.forward_message(msg, pid)
 
     def send_bpdu(self, send_now=False):
         """handles deciding whether it's time to send a BPDU and what BPDU to send

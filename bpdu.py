@@ -5,11 +5,10 @@ TIMEOUT = timedelta(seconds=.75)
 
 class Bpdu:
 
-    def __init__(self, root, cost, bid, pid):
+    def __init__(self, root, cost, bid):
         self.root = root
         self.cost = cost
         self.bid = bid
-        self.pid = pid
         self.time_updated = datetime.now()
 
     def compare(self, other):
@@ -20,8 +19,8 @@ class Bpdu:
         if not isinstance(other, Bpdu):
             raise NotImplementedError
         print 'compare roots'
-        print self.create(-1)
-        print other.create(-1)
+        print self.create(None)
+        print other.create(None)
         if self.root < other.root:
             return (False, True)
         elif self.root == other.root:
@@ -32,10 +31,7 @@ class Bpdu:
                 # other is a sibling node
                 if self.bid < other.bid:
                     return (False, True)
-                elif self.bid > other.bid:
-                    return (False, False)
-                elif self.pid < other.pid:
-                    # other is self
+                else:
                     return (False, False)
             elif self.cost == other.cost + 1:
                 # using other will result in path of same cost
