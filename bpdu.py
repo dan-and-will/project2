@@ -42,6 +42,22 @@ class Bpdu:
                     self.reset_timeout()
         return (True, True)
 
+    def __lt__(self, other):
+        if not isinstance(other, Bpdu):
+            raise NotImplementedError
+        print 'DO COMPARE'
+        print self.create(None)
+        print other.create(None)
+        if self.root < other.root:
+            return True
+        elif self.root == other.root:
+            if self.cost < other.cost:
+                return True
+            elif self.cost == other.cost:
+                if self.bid < other.bid:
+                    return True
+        return False
+
     def create(self, pid):
         packet = {'source': self.bid, 'dest': 'ffff', 'type': 'bpdu',
                     'message': {'id': pid, 'root': self.root, 'cost': self.cost}}

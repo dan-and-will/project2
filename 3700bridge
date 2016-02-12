@@ -36,6 +36,7 @@ class Bridge:
         self.closed_ports = set()
         self.root_pid = None
         self.bpdu = Bpdu(bid, 0, bid, bid)
+        self.best_bpdu = self.bpdu
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
         # creates sockets and connects to them
         for lan in lans:
@@ -77,6 +78,7 @@ class Bridge:
         print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
         self.root_pid = pid
+        self.best_bpdu = bpdu
         self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, bpdu.bid)
         self.send_bpdu(send_now=True)
 
@@ -93,15 +95,25 @@ class Bridge:
                           packet['source'],
                           None
                           )
-        use_other, enable_port = self.get_bpdu().compare(other_bpdu)
-        print 'use_other={uo}, enable_port={ep}'.format(uo=use_other, ep=enable_port)
-        if use_other:
-            self.use_bpdu(other_bpdu, pid)
-        if enable_port:
-            print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
-            self.enable_port(pid)
+        # use_other, enable_port = self.get_bpdu().compare(other_bpdu)
+        # print 'use_other={uo}, enable_port={ep}'.format(uo=use_other, ep=enable_port)
+        # if use_other:
+        #     self.use_bpdu(other_bpdu, pid)
+        # if enable_port:
+        #     print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
+        #     self.enable_port(pid)
+        # else:
+        #     self.disable_port(pid)
+        if self.best_bpdu < other_bpdu:
+            # current BPDU is better
+            self.bpdu.reset_timeout()
+            if self.bpdu.cost == other_bpdu.cost and self.id < other_bpdu.bid:
+                # currently have same cost (sibling) and better bid
+                self.disable_port(pid)
+            else:
+                self.enable_port(pid)
         else:
-            self.disable_port(pid)
+            self.use_bpdu(other_bpdu, pid)
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
