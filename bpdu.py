@@ -58,6 +58,11 @@ class Bpdu:
                     return True
         return False
 
+    def __eq__(self, other):
+        if not isinstance(other, Bpdu):
+            raise NotImplementedError
+        return self.root == other.root and self.cost == other.cost and self.bid == other.bid
+
     def create(self, pid):
         packet = {'source': self.bid, 'dest': 'ffff', 'type': 'bpdu',
                     'message': {'id': pid, 'root': self.root, 'cost': self.cost}}

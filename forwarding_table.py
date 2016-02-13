@@ -29,4 +29,4 @@ class ForwardingTable:
         """flushes all entries
         """
         print 'flush mcgoo'
-        self.table = {}
+        self.table.clear()

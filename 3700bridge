@@ -107,23 +107,26 @@ class Bridge:
         if self.best_bpdu < other_bpdu:
             # current BPDU is better
             self.bpdu.reset_timeout()
-            if self.bpdu.cost == other_bpdu.cost and self.id < other_bpdu.bid:
+            if self.bpdu.root == other_bpdu.root and self.bpdu.cost == other_bpdu.cost and self.id > other_bpdu.bid:
                 # currently have same cost (sibling) and better bid
                 self.disable_port(pid)
             else:
                 self.enable_port(pid)
         else:
-            self.use_bpdu(other_bpdu, pid)
+            if self.best_bpdu == other_bpdu:
+                self.bpdu.reset_timeout()
+            else:
+                self.use_bpdu(other_bpdu, pid)
+                self.send_bpdu(send_now=True)
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
         """
         # _, ready, _ = select.select([], ports, [], 0.25)
         ####TODO: for debugging. DELETE
-        # print 'Sending msg {msg} on ports: {ready}/{ports}'.format(msg=msg[msg.find('id')-1:msg.find('id')+7],
-        #                                                        ready=[s.fileno() for s in ready],
-        #                                                        ports=[s.fileno() for s in ports]
-        #                                                        )
+        print 'Sending msg {msg} on ports: {ports}'.format(msg=msg[msg.find('id')-1:msg.find('id')+7],
+                                                           ports=[s.fileno() for s in ports]
+                                                           )
         for s in ports:
             s.send(msg)
 
