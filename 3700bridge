@@ -69,7 +69,8 @@ class Bridge:
     def print_designated_port(self, pid):
         """alerts user of designated ports
         """
-        pass # print 'Designated port: {bid}/{pid}'.format(bid=self.id, pid=pid)
+        if pid != self.root_pid:
+            print 'Designated port: {bid}/{pid}'.format(bid=self.id, pid=pid)
 
     def get_open_ports(self, exclude_pid=None):
         """returns all enabled ports
