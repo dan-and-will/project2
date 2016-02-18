@@ -35,7 +35,7 @@ class Bridge:
         self.ports = {}
         self.closed_ports = set()
         self.root_pid = None
-        self.bpdu = Bpdu(bid, 0, bid, bid)
+        self.bpdu = Bpdu(bid, 0, bid)
         self.best_bpdu = self.bpdu
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
         # creates sockets and connects to them
@@ -48,7 +48,7 @@ class Bridge:
     def get_bpdu(self):
         if self.bpdu.is_timedout():
             print 'BPDU timeout'
-            self.bpdu = Bpdu(self.id, 0, self.id, self.id)
+            self.bpdu = Bpdu(self.id, 0, self.id)
         return self.bpdu
 
     def disable_port(self, pid):
@@ -79,7 +79,7 @@ class Bridge:
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
         self.root_pid = pid
         self.best_bpdu = bpdu
-        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, bpdu.bid)
+        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
         self.send_bpdu(send_now=True)
 
     def process_bpdu(self, packet, pid):
@@ -92,24 +92,21 @@ class Bridge:
             return
         other_bpdu = Bpdu(packet['message']['root'],
                           packet['message']['cost'],
-                          packet['source'],
-                          None
+                          packet['source']
                           )
-        # use_other, enable_port = self.get_bpdu().compare(other_bpdu)
-        # print 'use_other={uo}, enable_port={ep}'.format(uo=use_other, ep=enable_port)
-        # if use_other:
-        #     self.use_bpdu(other_bpdu, pid)
-        # if enable_port:
-        #     print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
-        #     self.enable_port(pid)
-        # else:
-        #     self.disable_port(pid)
+        if self.best_bpdu == other_bpdu:
+            self.disable_port(pid)
         if self.best_bpdu < other_bpdu:
             # current BPDU is better
-            self.bpdu.reset_timeout()
-            if self.bpdu.root == other_bpdu.root and self.bpdu.cost == other_bpdu.cost and self.id > other_bpdu.bid:
-                # currently have same cost (sibling) and better bid
-                self.disable_port(pid)
+            if self.bpdu.root == other_bpdu.root:
+                # part of same tree
+                if self.bpdu.cost == other_bpdu.cost:
+                    if self.id > other_bpdu.bid:
+                        # currently have same cost (sibling) and better bid
+                        self.disable_port(pid)
+                elif self.best_bpdu.cost == other_bpdu.cost:
+                    if self.best_bpdu.bid != other_bpdu.bid:
+                        self.disable_port(pid)
             else:
                 self.enable_port(pid)
         else:
