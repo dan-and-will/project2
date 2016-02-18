@@ -111,8 +111,7 @@ class Bridge:
                         # currently have same cost (sibling) and better bid
                         self.disable_port(pid)
                 elif self.best_bpdu.cost == other_bpdu.cost:
-                    if self.best_bpdu.bid != other_bpdu.bid:
-                        self.disable_port(pid)
+                    self.disable_port(pid)
         else:
             if self.best_bpdu == other_bpdu:
                 self.bpdu.reset_timeout()
