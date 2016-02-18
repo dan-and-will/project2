@@ -35,7 +35,8 @@ class Bridge:
         self.ports = {}
         self.closed_ports = set()
         self.root_pid = None
-        self.bpdu = Bpdu(bid, 0, bid, bid)
+        self.bpdu = Bpdu(bid, 0, bid)
+        self.best_bpdu = self.bpdu
         self.last_bpdu_time = datetime.utcfromtimestamp(0)
         # creates sockets and connects to them
         for lan in lans:
@@ -47,7 +48,7 @@ class Bridge:
     def get_bpdu(self):
         if self.bpdu.is_timedout():
             print 'BPDU timeout'
-            self.bpdu = Bpdu(self.id, 0, self.id, self.id)
+            self.bpdu = Bpdu(self.id, 0, self.id)
         return self.bpdu
 
     def disable_port(self, pid):
@@ -77,7 +78,8 @@ class Bridge:
         print 'New root: {id}/{root}, cost: {c}'.format(id=self.id, root=bpdu.root, c=bpdu.cost+1)
         print 'Root port: {id}/{port_id}'.format(id=self.id, port_id=pid)
         self.root_pid = pid
-        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id, bpdu.bid)
+        self.best_bpdu = bpdu
+        self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
         self.send_bpdu(send_now=True)
 
     def process_bpdu(self, packet, pid):
@@ -90,28 +92,38 @@ class Bridge:
             return
         other_bpdu = Bpdu(packet['message']['root'],
                           packet['message']['cost'],
-                          packet['source'],
-                          None
+                          packet['source']
                           )
-        use_other, enable_port = self.get_bpdu().compare(other_bpdu)
-        print 'use_other={uo}, enable_port={ep}'.format(uo=use_other, ep=enable_port)
-        if use_other:
-            self.use_bpdu(other_bpdu, pid)
-        if enable_port:
-            print "Designated port: {bid}/{pid}".format(bid=self.id, pid=pid)
-            self.enable_port(pid)
-        else:
+        if self.best_bpdu == other_bpdu:
             self.disable_port(pid)
+        if self.best_bpdu < other_bpdu:
+            # current BPDU is better
+            if self.bpdu.root == other_bpdu.root:
+                # part of same tree
+                if self.bpdu.cost == other_bpdu.cost:
+                    if self.id > other_bpdu.bid:
+                        # currently have same cost (sibling) and better bid
+                        self.disable_port(pid)
+                elif self.best_bpdu.cost == other_bpdu.cost:
+                    if self.best_bpdu.bid != other_bpdu.bid:
+                        self.disable_port(pid)
+            else:
+                self.enable_port(pid)
+        else:
+            if self.best_bpdu == other_bpdu:
+                self.bpdu.reset_timeout()
+            else:
+                self.use_bpdu(other_bpdu, pid)
+                self.send_bpdu(send_now=True)
 
     def send_message(self, msg, ports):
         """generic method to send a message on a list of ports
         """
         # _, ready, _ = select.select([], ports, [], 0.25)
         ####TODO: for debugging. DELETE
-        # print 'Sending msg {msg} on ports: {ready}/{ports}'.format(msg=msg[msg.find('id')-1:msg.find('id')+7],
-        #                                                        ready=[s.fileno() for s in ready],
-        #                                                        ports=[s.fileno() for s in ports]
-        #                                                        )
+        print 'Sending msg {msg} on ports: {ports}'.format(msg=msg[msg.find('id')-1:msg.find('id')+7],
+                                                           ports=[s.fileno() for s in ports]
+                                                           )
         for s in ports:
             s.send(msg)
 
