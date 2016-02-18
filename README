@@ -14,3 +14,18 @@ seemed unexpected or incorrect, and then thought about why it was happening and 
 For each of the configuration files that was tripping up our code, we also drew out the network
 topology to see what's different to narrow down why some configurations succeeded and others 
 did not.
+
+Afterwards, we used largely the same strategy following the milestone, namely drawing out the configurations
+that were causing us trouble and comparing them with the configurations that we were passing,
+and trying to determine what were the key differences between them. The general concept that
+was causing the most problems was the enabling and disabling of ports - at first we were being 
+too liberal with opening ports and allowing cycles, and then ended up with logic that was too
+aggressively closing ports and ended up dropping packets. Eventually we hit a sweet spot that
+maximized performance without allowing cycles.
+
+The most challenging part of this assignment was debugging since a regular debugger was not possible,
+and print statements resulted in a massive amout of output. It was really helpful at this point to
+trace exclusively dropped packets through the network, and examine the behavior of bridges we knew
+should handle them and see if what they did met our expectations. In the end, the key was thinking
+through possible scenarios to develop robust logic to handle every situation, as opposed to adding
+and removing logic ad hoc.
