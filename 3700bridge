@@ -5,12 +5,12 @@
 #Dan Russotto and Will DeRivera
 #Team dan_and_will
 
-from datetime import datetime, timedelta
 import json
-import sys
-import socket
 import select
-import threading
+import socket
+import sys
+
+from datetime import datetime, timedelta
 
 from bpdu import Bpdu
 from forwarding_table import ForwardingTable
@@ -46,12 +46,13 @@ class Bridge:
         print "Bridge {bid} starting up".format(bid=bid)
 
     def get_bpdu(self):
+        """will return current BPDU
+        Handles BPDU timeouts
+        """
         if self.bpdu.is_timedout():
             print 'BPDU timeout'
-
             if self.id != self.bpdu.root:
                 self.closed_ports.clear()
-
             self.bpdu = Bpdu(self.id, 0, self.id)
             self.best_bpdu = self.bpdu
             self.ftable.flush()
@@ -65,12 +66,10 @@ class Bridge:
             self.ftable.flush()
             self.closed_ports.add(pid)
 
-    def enable_port(self, pid):
-        """enables port
+    def print_designated_port(self, pid):
+        """alerts user of designated ports
         """
-        print 'Enabled port: {id}/{pid}'.format(id=self.id, pid=pid)
-        self.ftable.flush()
-        self.closed_ports.discard(pid)
+        pass # print 'Designated port: {bid}/{pid}'.format(bid=self.id, pid=pid)
 
     def get_open_ports(self, exclude_pid=None):
         """returns all enabled ports
@@ -95,8 +94,12 @@ class Bridge:
         updates the bridge if necessary
         """
         if packet['source'] == self.id:
+            # happens when a bridge has 2+ ports on a LAN
             if packet['message']['id'] < pid:
+                # Close all but one port on that LAN
                 self.disable_port(pid)
+            else:
+                self.print_designated_port(pid)
             return
         other_bpdu = Bpdu(packet['message']['root'],
                           packet['message']['cost'],
@@ -104,7 +107,10 @@ class Bridge:
                           )
         self_bpdu = self.get_bpdu()
         if self.best_bpdu == other_bpdu:
+            # prevents flipping between 2 ports talking to the same next hop bridge
             self.disable_port(pid)
+        else:
+            self.print_designated_port(pid)
         if self.best_bpdu < other_bpdu:
             # current BPDU is better
             if self_bpdu.root == other_bpdu.root:
@@ -113,26 +119,19 @@ class Bridge:
                     if self.id > other_bpdu.bid:
                         # currently have same cost (sibling) and better bid
                         self.disable_port(pid)
+                    else:
+                        self.print_designated_port(pid)
                 elif self.best_bpdu.cost == other_bpdu.cost:
+                    # close port talking to parent with worse id than current next hop
                     self.disable_port(pid)
+                else:
+                    self.print_designated_port(pid)
         else:
             if self.best_bpdu == other_bpdu:
                 self.bpdu.reset_timeout()
             else:
                 self.use_bpdu(other_bpdu, pid)
                 self.send_bpdu(send_now=True)
-
-    def send_message(self, msg, ports):
-        """generic method to send a message on a list of ports
-        """
-        # _, ready, _ = select.select([], ports, [], 0.25)
-        ####TODO: for debugging. DELETE
-        print 'Sending msg {msg} on ports: {ports}'.format(msg=msg[msg.find('id')-1:msg.find('id')+7],
-                                                           ports=[s.fileno() for s in ports]
-                                                           )
-        print 'closed ports', self.closed_ports
-        for s in ports:
-            s.send(msg)
 
     def forward_message(self, msg, recv_pid):
         """handles sending message to destination
@@ -144,21 +143,22 @@ class Bridge:
                                                                                    source=msg['source'],
                                                                                    dest=msg['dest']
                                                                                    )
-        self.ftable.write_row(msg['source'], recv_pid)
         dest_pid = self.ftable.read_row(msg['dest'])
+        if dest_pid ==  recv_pid:
+            print 'Not forwarding message {id}'.format(id=msg['message']['id'])
+            return
+        self.ftable.write_row(msg['source'], recv_pid)
         if dest_pid < 0:
             print 'Broadcasting message {id} to all ports'.format(id=msg['message']['id'])
             ports = self.get_open_ports(exclude_pid=recv_pid)
-        elif dest_pid == recv_pid:
-            print 'Not forwarding message {id}'.format(id=msg['message']['id'])
-            return
         else:
             print 'Forwarding message {id} to port {pid}'.format(id=msg['message']['id'],
                                                                  pid=dest_pid
                                                                  )
             ports = [self.ports[dest_pid]]
         msg = json.dumps(msg)
-        self.send_message(msg, ports)
+        for s in ports:
+            s.send(msg)
 
     def process_message(self, data, pid):
         """records new hosts on forwarding table and delegates further
@@ -174,6 +174,7 @@ class Bridge:
         """handles deciding whether it's time to send a BPDU and what BPDU to send
         """
         if datetime.now() - self.last_bpdu_time > BPDU_SEND_INTERVAL or send_now:
+            # only send if prev send was over 500ms ago or on state change
             self.last_bpdu_time = datetime.now()
             bpdu = self.get_bpdu()
             for pid, port in self.ports.iteritems():
@@ -184,10 +185,8 @@ class Bridge:
         """
         while True:
             self.send_bpdu()
-
             # Calls select with all the sockets; change the timeout value (1)
             ready, _, _ = select.select(self.ports.values(), [], [], 0.25)
-
             # Reads from each of the ready sockets
             for s in ready:
                 data = s.recv(1500)
