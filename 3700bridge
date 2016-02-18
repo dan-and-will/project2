@@ -48,9 +48,12 @@ class Bridge:
     def get_bpdu(self):
         if self.bpdu.is_timedout():
             print 'BPDU timeout'
+
+            if self.id != self.bpdu.root:
+                self.closed_ports.clear()
+
             self.bpdu = Bpdu(self.id, 0, self.id)
             self.best_bpdu = self.bpdu
-            self.closed_ports.clear()
             self.ftable.flush()
         return self.bpdu
 
