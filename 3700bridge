@@ -81,6 +81,7 @@ class Bridge:
         self.best_bpdu = bpdu
         self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
         self.send_bpdu(send_now=True)
+        self.closed_ports.clear()
 
     def process_bpdu(self, packet, pid):
         """compares incoming BPDU messages to the current bridge configuration
@@ -107,8 +108,6 @@ class Bridge:
                 elif self.best_bpdu.cost == other_bpdu.cost:
                     if self.best_bpdu.bid != other_bpdu.bid:
                         self.disable_port(pid)
-            else:
-                self.enable_port(pid)
         else:
             if self.best_bpdu == other_bpdu:
                 self.bpdu.reset_timeout()
