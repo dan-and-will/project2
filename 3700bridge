@@ -49,6 +49,9 @@ class Bridge:
         if self.bpdu.is_timedout():
             print 'BPDU timeout'
             self.bpdu = Bpdu(self.id, 0, self.id)
+            self.best_bpdu = self.bpdu
+            self.closed_ports.clear()
+            self.ftable.flush()
         return self.bpdu
 
     def disable_port(self, pid):
@@ -82,6 +85,7 @@ class Bridge:
         self.bpdu = Bpdu(bpdu.root, bpdu.cost + 1, self.id)
         self.send_bpdu(send_now=True)
         self.closed_ports.clear()
+        self.ftable.flush()
 
     def process_bpdu(self, packet, pid):
         """compares incoming BPDU messages to the current bridge configuration
@@ -95,13 +99,14 @@ class Bridge:
                           packet['message']['cost'],
                           packet['source']
                           )
+        self_bpdu = self.get_bpdu()
         if self.best_bpdu == other_bpdu:
             self.disable_port(pid)
         if self.best_bpdu < other_bpdu:
             # current BPDU is better
-            if self.bpdu.root == other_bpdu.root:
+            if self_bpdu.root == other_bpdu.root:
                 # part of same tree
-                if self.bpdu.cost == other_bpdu.cost:
+                if self_bpdu.cost == other_bpdu.cost:
                     if self.id > other_bpdu.bid:
                         # currently have same cost (sibling) and better bid
                         self.disable_port(pid)
@@ -123,6 +128,7 @@ class Bridge:
         print 'Sending msg {msg} on ports: {ports}'.format(msg=msg[msg.find('id')-1:msg.find('id')+7],
                                                            ports=[s.fileno() for s in ports]
                                                            )
+        print 'closed ports', self.closed_ports
         for s in ports:
             s.send(msg)
 
